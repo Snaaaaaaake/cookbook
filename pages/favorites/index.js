@@ -2,6 +2,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
 import { connect } from 'react-redux';
+import PropTypes from 'prop-types';
 import mealService from '../../src/service/MealService';
 import { fetchMealListThunkAction } from '../../src/actions/actions';
 import checkContentState from '../../src/utils/checkContentState';
@@ -22,20 +23,20 @@ const Page = (props) => {
     const contentState = checkContentState(error, isLoading);
 
     useEffect(() => {
-        const fetchState = { canceled: false };
+        const fetchCondition = { canceled: false };
         if (favorites.length > 0) {
-            fetchMealListThunkAction(mealService.getFavoritesList, fetchState, favorites, 1);
+            fetchMealListThunkAction(mealService.getFavoritesList, fetchCondition, favorites, 1);
             router.replace(ROUTES.FAVORITES);
         }
-        return () => fetchState.canceled = true;
+        return () => fetchCondition.canceled = true;
     }, [favorites]);
 
     useEffect(() => {
-        const fetchState = { canceled: false };
+        const fetchCondition = { canceled: false };
         if (favorites.length > 0) {
-            fetchMealListThunkAction(mealService.getFavoritesList, fetchState, favorites, page);
+            fetchMealListThunkAction(mealService.getFavoritesList, fetchCondition, favorites, page);
         }
-        return () => fetchState.canceled = true;
+        return () => fetchCondition.canceled = true;
     }, [page]);
 
     let Content;
@@ -63,6 +64,12 @@ const Page = (props) => {
             <Content />
         </StandartLayout>
     </>);
+}
+
+Page.propTypes = {
+    fetchMealListThunkAction: PropTypes.func,
+    userState: PropTypes.object,
+    mealListState: PropTypes.object,
 }
 
 const mapStateToProps = (state) => ({

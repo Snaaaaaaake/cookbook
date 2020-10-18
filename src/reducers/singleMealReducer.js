@@ -1,10 +1,6 @@
-const initialState = {
-    meal: null,
-    error: null,
-    isLoading: false,
-}
+import { initialSingleMealState } from '../store/initialStates';
 
-const singleMealReducer = (state = initialState, action) => {
+const singleMealReducer = (state = initialSingleMealState, action) => {
     switch (action.type) {
         case 'FETCH_SINGLE_MEAL_REQUEST':
             return {
@@ -23,6 +19,12 @@ const singleMealReducer = (state = initialState, action) => {
                 meal: null,
                 error: action.payload,
                 isLoading: false,
+            }
+        case 'APPLY_SINGLE_MEAL_SERVER_STATE':
+            return {
+                meal: action.payload.meal,
+                error: action.payload.error,
+                isLoading: action.payload.isLoading,
             }
         default: return state;
     }

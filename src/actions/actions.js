@@ -1,9 +1,9 @@
 function thunkActionCreator(requestAction, successAction, failureAction) {
-    return (service, fetchState, ...rest) => (dispatch) => {
+    return (service, fetchCondition, ...rest) => (dispatch) => {
         dispatch(requestAction());
         service(...rest)
         .then(data => {
-                if (!fetchState.canceled) {
+                if (!fetchCondition.canceled) {
                     dispatch(successAction(data))
                 }
             })
@@ -27,6 +27,11 @@ const fetchSingleMealThunkAction = thunkActionCreator(
     fetchSingleMealSuccessAction,
     fetchSingleMealFailureAction,
 );
+const applySingleMealServerStateAction = (data) => ({
+    type: 'APPLY_SINGLE_MEAL_SERVER_STATE',
+    payload: data,
+});
+
 
 const fetchMealListRequestAction = () => ({
     type: 'FETCH_MEAL_LIST_REQUEST',
@@ -44,6 +49,14 @@ const fetchMealListThunkAction = thunkActionCreator(
     fetchMealListSuccessAction,
     fetchMealListFailureAction,
 );
+const applyMealListServerStateAction = (data) => ({
+    type: 'APPLY_MEAL_LIST_SERVER_STATE',
+    payload: data,
+});
+const resetMealListAction = () => ({
+    type: 'RESET_MEAL_LIST',
+});
+
 
 const fetchCategoriesListRequestAction = () => ({
     type: 'FETCH_CATEGORIES_LIST_REQUEST',
@@ -61,6 +74,11 @@ const fetchCategoriesListThunkAction = thunkActionCreator(
     fetchCategoriesListSuccessAction,
     fetchCategoriesListFailureAction,
 );
+const applyCategoriesListStateAction = (data) => ({
+    type: 'APPLY_CATEGORIES_LIST_SERVER_STATE',
+    payload: data,
+});
+
 
 const userChangeAction = (data) => ({
     type: 'USER_CHANGE',
@@ -98,17 +116,13 @@ const userAndListenerChangeThunkAction = (newUser, service) => (dispatch, getSta
 }
 
 export {
-    fetchSingleMealRequestAction,
-    fetchSingleMealSuccessAction,
-    fetchSingleMealFailureAction,
     fetchSingleMealThunkAction,
-    fetchMealListRequestAction,
-    fetchMealListSuccessAction,
-    fetchMealListFailureAction,
+    applySingleMealServerStateAction,
     fetchMealListThunkAction,
-    fetchCategoriesListRequestAction,
+    resetMealListAction,
+    applyMealListServerStateAction,
     fetchCategoriesListSuccessAction,
-    fetchCategoriesListFailureAction,
     fetchCategoriesListThunkAction,
+    applyCategoriesListStateAction,
     userAndListenerChangeThunkAction,
 }

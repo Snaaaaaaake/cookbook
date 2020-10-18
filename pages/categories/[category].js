@@ -7,14 +7,17 @@ import Link from 'next/link';
 
 import mealService from '../../src/service/MealService';
 import checkContentState from '../../src/utils/checkContentState';
+import componentDidMountFunction from '../../src/utils/componentDidMountFunction';
+import createServerSideError from '../../src/utils/createServerSideError';
 import {
-    fetchMealListSuccessAction,
+    applyMealListServerStateAction,
     fetchMealListThunkAction,
 } from '../../src/actions/actions';
 import MealCard from '../../src/components/MealCard/MealCard';
 import StandartLayout from '../../src/components/StandartLayout/StandartLayout';
 import Pagination from '../../src/components/Pagination/Pagination';
 import appTitle from '../../src/constants/appTitle';
+import { initialMealListState } from '../../src/store/initialStates';
 import ROUTES from '../../src/constants/routes';
 
 const Page = (props) => {
@@ -23,29 +26,29 @@ const Page = (props) => {
     const page = +router.query.page || 1;
 
     const {
-        fetchMealListSuccessAction,
+        applyMealListServerStateAction,
         fetchMealListThunkAction,
-        serverSideData,
+        serverSideState,
         mealListState,
     } = props;
-    const { isLoading, error } = mealListState;
-    const { list, pages } = serverSideData ? serverSideData : mealListState;
+    
+    const { list, pages, isLoading, error } = serverSideState ? serverSideState : mealListState;
     const contentState = checkContentState(error, isLoading);
 
-    useEffect(() => {
-        const fetchState = { canceled: false };
-        if (serverSideData) {
-            fetchMealListSuccessAction(serverSideData)
-        } else {
-            fetchMealListThunkAction(mealService.getMealListByCategory, fetchState, category, page);
-        }
-        return () => fetchState.canceled = true;
-    }, [page]);
+    useEffect(componentDidMountFunction(
+        serverSideState,
+        applyMealListServerStateAction,
+        fetchMealListThunkAction,
+        mealService.getMealListByCategory,
+        category,
+        page,
+    ), [page]);
 
     return (<>
         <Head>
             <title>{`${appTitle}: Категории - ${category}`}</title>
-            <meta name="description" content={`Рецепты блюд в категории ${category} с фотографиями`} /> 
+            <meta name="description" content={`Рецепты блюд в категории ${category} с фотографиями`} />
+            { (serverSideState && serverSideState.error) && <meta name="robots" content="noindex" /> } 
         </Head>
 
         <StandartLayout>
@@ -63,22 +66,25 @@ const Page = (props) => {
 
 Page.getInitialProps = async ({ req, query }) => {
     if (!req) {
-      return { serverSideData: null }
+        return { serverSideState: null }
     }
     
     const page = query.page ? query.page : 1;
+    const serverSideState = { ...initialMealListState };
     try {
-      const data = await mealService.getMealListByCategory(query.category, page);
-      return { serverSideData: data }
-    } catch {
-      return { serverSideData: null }
+        const { list, pages } = await mealService.getMealListByCategory(query.category, page);
+        serverSideState.list = list;
+        serverSideState.pages = pages;
+    } catch (error) {
+        serverSideState.error = createServerSideError(error);
     }
+    return { serverSideState };
 }
 
 Page.propTypes = {
-    fetchMealListSuccessAction: PropTypes.func,
+    applyMealListServerStateAction: PropTypes.func,
     fetchMealListThunkAction: PropTypes.func,
-    serverSideData: PropTypes.object,
+    serverSideState: PropTypes.object,
     mealListState: PropTypes.object,
 }
 
@@ -86,7 +92,7 @@ const mapStateToProps = (state) => ({
     mealListState: state.mealListState,
 });
 const mapDispatchToProps = {
-    fetchMealListSuccessAction,
+    applyMealListServerStateAction,
     fetchMealListThunkAction,
 }
 

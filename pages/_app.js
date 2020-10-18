@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Provider as StoreProvider } from 'react-redux';
 import Head from 'next/head';
-import store from '../src/store';
+import store from '../src/store/store';
 import FirebaseService from '../src/service/FirebaseService';
 import FirebaseContext from '../src/components/context/FirebaseContext';
 import { userAndListenerChangeThunkAction } from '../src/actions/actions';
@@ -11,7 +11,7 @@ import '../styles/globals.css';
 const firebaseService = new FirebaseService(firebaseConfig);
 
 function MyApp({ Component, pageProps }) {
-  // При первом запуске запускаем слушатель от бэкенда на смену пользователя,
+  // При первом запуске приложения запускаем слушатель от бэкенда на смену пользователя,
   // а внутри на изменение избранного пользователя
   useEffect(() => {
     firebaseService.auth.onAuthStateChanged(authUser => {
@@ -32,4 +32,4 @@ function MyApp({ Component, pageProps }) {
   </>)
 }
 
-export default MyApp
+export default MyApp;

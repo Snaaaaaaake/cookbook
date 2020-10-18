@@ -1,10 +1,6 @@
-const initialState = {
-    user: null,
-    listenerRef: null,
-    favorites: [],
-}
+import { initialUserState } from '../store/initialStates';
 
-const userReducer = (state = initialState, action) => {
+const userReducer = (state = initialUserState, action) => {
     switch (action.type) {
         case 'USER_CHANGE':
             return {

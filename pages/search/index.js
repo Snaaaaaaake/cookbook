@@ -6,11 +6,14 @@ import Head from 'next/head';
 
 import mealService from '../../src/service/MealService';
 import checkContentState from '../../src/utils/checkContentState';
+import { initialMealListState } from '../../src/store/initialStates';
+import createServerSideError from '../../src/utils/createServerSideError';
 import {
-    fetchCategoriesListSuccessAction,
-    fetchMealListSuccessAction,
-    fetchMealListFailureAction,
+    fetchCategoriesListThunkAction,
+    applyMealListServerStateAction,
+    applyCategoriesListStateAction,
     fetchMealListThunkAction,
+    resetMealListAction,
 } from '../../src/actions/actions';
 import StandartLayout from '../../src/components/StandartLayout/StandartLayout';
 import MealCard from '../../src/components/MealCard/MealCard';
@@ -22,11 +25,12 @@ import ROUTES from '../../src/constants/routes';
 const Page = (props) => {
     const router = useRouter();
     const {
-        fetchCategoriesListSuccessAction,
-        fetchMealListSuccessAction,
-        fetchMealListFailureAction,
+        fetchCategoriesListThunkAction,
+        applyCategoriesListStateAction,
         fetchMealListThunkAction,
-        serverSideData,
+        applyMealListServerStateAction,
+        resetMealListAction,
+        serverSideState,
         mealListState,
         categoriesListState,
     } = props;
@@ -37,37 +41,36 @@ const Page = (props) => {
     delete pageQuery.page;
 
     const [ filter, setFilter ] = useState({ ...initialFilter, ...pageQuery });
-    const { error, isLoading } = mealListState;
-    const { list: mealList, pages } = serverSideData.data || mealListState;
+    const { list, pages, isLoading, error } = serverSideState ? serverSideState : mealListState;
     const contentState = checkContentState(error, isLoading);
     const notEmptyFilterKeys = Object.keys(filter).filter(key => filter[key]);
-    const categoriesList = serverSideData.categoriesList || categoriesListState.list;
-
+    const categoriesList = serverSideState ? serverSideState.categoriesList : categoriesListState.list;
+    
     useEffect(() => {
         // Первичная загрузка списка категорий
+        const fetchCondition = { canceled: false };
         if (categoriesList.length === 0) {
-            mealService.getCategoriesList()
-                .then(fetchCategoriesListSuccessAction)
-                .catch(fetchMealListFailureAction)
+            fetchCategoriesListThunkAction(mealService.getCategoriesList, fetchCondition);
         } else {
-            fetchCategoriesListSuccessAction(categoriesList)
+            applyCategoriesListStateAction({list: categoriesList, error: null, isLoading: false});
         }
+        return () => fetchCondition.canceled = true;
     }, []);
 
     useEffect(() => {
-        const fetchState = { canceled: false };
+        const fetchCondition = { canceled: false };
         // Запрос списка материалов,
         // если есть критерии поиска и нет данных с беэкэнда
-        if (notEmptyFilterKeys.length > 0 && !serverSideData.data) {
-            fetchMealListThunkAction(mealService.getFilteredList, fetchState, filter, page);
-        } else if (serverSideData.data) {
+        if (notEmptyFilterKeys.length > 0 && !serverSideState) {
+            fetchMealListThunkAction(mealService.getFilteredList, fetchCondition, filter, page);
+        } else if (serverSideState) {
         // Иначе добавляем в хранилище данные с сервера
-            fetchMealListSuccessAction({ list: mealList, pages});
+            applyMealListServerStateAction(serverSideState);
         } else {
         // При сбросе фильтра
-            fetchMealListSuccessAction({ list: [], pages: 1});
+            resetMealListAction();
         }
-        return () => fetchState.canceled = true;
+        return () => fetchCondition.canceled = true;
     }, [pagePath]);
 
     const onChangeFilterHandler = (event) => {
@@ -93,18 +96,19 @@ const Page = (props) => {
     let Content;
     if (contentState) {
         Content = contentState;
-    } else if (mealList.length === 0) {
+    } else if (list.length === 0) {
         Content = () => <p>Введите данные для начала поиска</p>
     } else {
         Content = () => (<>
             <h4 className="mb-3">Результаты поиска</h4>
-            { mealList.map(meal => <MealCard meal={meal} key={meal.mealId}/>) }
+            { list.map(meal => <MealCard meal={meal} key={meal.mealId}/>) }
         </>)
     }
 
     return (<>
         <Head>
             <title>{`${appTitle}: Поиск блюда`}</title>
+            <meta name="robots" content="noindex" />
         </Head>
 
         <StandartLayout>
@@ -139,33 +143,35 @@ const Page = (props) => {
 
 Page.getInitialProps = async ({ req, query }) => {
     if (!req) {
-        return { serverSideData: {} }
+        return { serverSideState: null }
     }
 
+    const serverSideState = { ...initialMealListState, categoriesList: [] };
     try {
         const categoriesList = await mealService.getCategoriesList();
         const filter = { ...query };
         const { page } = filter;
         delete filter.page;
-        let data;
+        serverSideState.categoriesList = categoriesList;
         if (Object.keys(filter).length > 0) {
-            data = await mealService.getFilteredList(filter, page);
-        } else {
-            data = null;
+            const { list, pages } = await mealService.getFilteredList(filter, page);
+            serverSideState.list = list;
+            serverSideState.pages = pages;
         }
-        return { serverSideData: { data, categoriesList } }
-    } catch {
-        return { serverSideData: {} }
+    } catch (error) {
+        serverSideState.error = createServerSideError(error);
     }
+    return { serverSideState }
 }
 
 Page.propTypes = {
-    fetchFilteredListSuccess: PropTypes.func,
-    fetchFilteredListFailure: PropTypes.func,
-    fetchCategoriesListSuccessAction: PropTypes.func,
-    fetchFilteredList: PropTypes.func,
-    serverSideData: PropTypes.object,
-    filterState: PropTypes.object,
+    fetchCategoriesListThunkAction: PropTypes.func,
+    applyMealListServerStateAction: PropTypes.func,
+    applyCategoriesListStateAction: PropTypes.func,
+    fetchMealListThunkAction: PropTypes.func,
+    resetMealListAction: PropTypes.func,
+    serverSideState: PropTypes.object,
+    mealListState: PropTypes.object,
     categoriesListState: PropTypes.object,
 }
 
@@ -174,10 +180,11 @@ const mapStateToProps = (state) => ({
     categoriesListState: state.categoriesListState,
 });
 const mapDispatchToProps = {
-    fetchCategoriesListSuccessAction,
-    fetchMealListSuccessAction,
-    fetchMealListFailureAction,
+    fetchCategoriesListThunkAction,
+    applyMealListServerStateAction,
+    applyCategoriesListStateAction,
     fetchMealListThunkAction,
+    resetMealListAction,
 }
 
 export default connect(mapStateToProps, mapDispatchToProps)(Page);

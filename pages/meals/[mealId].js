@@ -8,8 +8,11 @@ import Link from 'next/link';
 import FavoriteButton from '../../src/components/FavoriteButton/FavoriteButton';
 import mealService from '../../src/service/MealService';
 import checkContentState from '../../src/utils/checkContentState';
+import componentDidMountFunction from '../../src/utils/componentDidMountFunction';
+import createServerSideError from '../../src/utils/createServerSideError';
+import { initialSingleMealState } from '../../src/store/initialStates';
 import {
-    fetchSingleMealSuccessAction,
+    applySingleMealServerStateAction,
     fetchSingleMealThunkAction,
 } from '../../src/actions/actions';
 import StandartLayout from '../../src/components/StandartLayout/StandartLayout';
@@ -18,27 +21,23 @@ import ROUTES from '../../src/constants/routes';
 
 const Page = (props) => {
     const router = useRouter();
-
     const { mealId } = router.query;
     const {
-        fetchSingleMealSuccessAction,
+        applySingleMealServerStateAction,
         fetchSingleMealThunkAction,
-        serverSideData,
+        serverSideState,
         singleMealState,
     } = props;
 
-    useEffect(() => {
-        const fetchState = { canceled: false };
-        if (serverSideData) {
-            fetchSingleMealSuccessAction(serverSideData)
-        } else {
-            fetchSingleMealThunkAction(mealService.getMealById, fetchState, mealId)
-        }
-        return () => fetchState.canceled = true;
-    }, []);
+    useEffect(componentDidMountFunction(
+        serverSideState,
+        applySingleMealServerStateAction,
+        fetchSingleMealThunkAction,
+        mealService.getMealById,
+        mealId,
+    ), []);
     
-    const meal = serverSideData ? serverSideData : singleMealState.meal;
-    const { error, isLoading } = singleMealState;
+    const { meal, isLoading, error} = serverSideState ? serverSideState : singleMealState;
     const contentState = checkContentState(error, isLoading);
 
     let Content, mealTitle;
@@ -77,7 +76,8 @@ const Page = (props) => {
     return (<>
         <Head>
             <title>{`${appTitle}: Рецепт ${mealTitle}`}</title>
-            <meta name="description" content={`Рецепт и фото блюда ${mealTitle}`} /> 
+            <meta name="description" content={`Рецепт и фото блюда ${mealTitle}`} />
+            { (serverSideState && serverSideState.error) && <meta name="robots" content="noindex" /> } 
         </Head>
 
         <StandartLayout>
@@ -89,31 +89,31 @@ const Page = (props) => {
 
 Page.getInitialProps = async ({ req, query }) => {
     if (!req) {
-        return { serverSideData: null }
+        return { serverSideState: null }
     }
 
     const { mealId } = query;
+    let serverSideState = { ...initialSingleMealState };
     try {
-        const data = await mealService.getMealById(mealId);
-        return { serverSideData: data }
-    } catch {
-        return { serverSideData: null }
+        serverSideState.meal = await mealService.getMealById(mealId);
+    } catch (error) {
+        serverSideState.error = createServerSideError(error);
     }
+    return { serverSideState };
 }
 
 Page.propTypes = {
-    fetchSingleMealSuccessAction: PropTypes.func,
+    applySingleMealServerStateAction: PropTypes.func,
     fetchSingleMealThunkAction: PropTypes.func,
-    serverSideData: PropTypes.object,
+    serverSideState: PropTypes.object,
     singleMealState: PropTypes.object,
-    userState: PropTypes.object,
 }
 
 const mapStateToProps = (state) => ({
     singleMealState: state.singleMealState,
 });
 const mapDispatchToProps = {
-    fetchSingleMealSuccessAction,
+    applySingleMealServerStateAction,
     fetchSingleMealThunkAction,
 }
 

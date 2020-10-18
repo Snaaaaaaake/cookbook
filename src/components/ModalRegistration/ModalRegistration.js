@@ -67,11 +67,11 @@ const ModalRegistration = (props) => {
     }
 
     // Обработчики формы
-    const modalToggleHandler = (event) => {
+    const modalToggleHandler = () => {
         setFormState({
             ...initialFormState,
             isOpened: !isOpened,
-            currentForm: currentForm,
+            currentForm,
         });
     };
     const onChangeFormHandler = (event) => {
@@ -95,6 +95,7 @@ const ModalRegistration = (props) => {
         <p className="card-text">Рецептов в избранном: { favorites.length }</p>
         <button type="button" disabled={isLoading} onClick={onSignOutHandler} className="btn btn-outline-primary" data-dismiss="modal">Выйти</button>
     </>;
+
     const changeFormForm =  <form>
         <fieldset disabled={isLoading}>
             <div className="custom-control custom-radio">
@@ -107,6 +108,7 @@ const ModalRegistration = (props) => {
             </div>
         </fieldset>
     </form>;
+
     const signUpForm = <form onSubmit={onSubmitSignUpHandler} className="mt-3">
         <fieldset disabled={isLoading}>
             <div className="form-group">
@@ -130,6 +132,7 @@ const ModalRegistration = (props) => {
             <button type="submit" className="btn btn-primary">Зарегистрироваться</button>
         </fieldset>
     </form>;
+
     const signInForm = <form onSubmit={onSubmitSignInHandler} className="mt-3">
         <fieldset disabled={isLoading}>
             <div className="form-group">

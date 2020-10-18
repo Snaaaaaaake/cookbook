@@ -4,11 +4,13 @@ import Head from 'next/head';
 import PropTypes from 'prop-types';
 
 import mealService from '../../src/service/MealService';
-import getInitialPropsFunction from '../../src/utils/getInitialPropsFunction';
+import { initialCategoriesListState } from '../../src/store/initialStates';
+import componentDidMountFunction from '../../src/utils/componentDidMountFunction';
+import createServerSideError from '../../src/utils/createServerSideError';
 import checkContentState from '../../src/utils/checkContentState';
 import StandartLayout from '../../src/components/StandartLayout/StandartLayout';
 import {
-    fetchCategoriesListSuccessAction,
+    applyCategoriesListStateAction,
     fetchCategoriesListThunkAction,
 } from '../../src/actions/actions';
 import appTitle from '../../src/constants/appTitle';
@@ -16,24 +18,20 @@ import CategoryCard from '../../src/components/CategoryCard/CategoryCard';
 
 const Page = (props) => {
     const {
-        fetchCategoriesListSuccessAction,
+        applyCategoriesListStateAction,
         fetchCategoriesListThunkAction,
-        serverSideData,
+        serverSideState,
         categoriesListState,
     } = props;
-    const { isLoading, error } = categoriesListState;
-    const list = serverSideData ? serverSideData : categoriesListState.list;
+    const { list, isLoading, error } = serverSideState ? serverSideState : categoriesListState;
     const contentState = checkContentState(error, isLoading);
 
-    useEffect(() => {
-        const fetchState = { canceled: false };
-        if (serverSideData) {
-            fetchCategoriesListSuccessAction(serverSideData)
-        } else {
-            fetchCategoriesListThunkAction(mealService.getCategoriesList, fetchState);
-        }
-        return () => fetchState.canceled = true;
-    }, [])
+    useEffect(componentDidMountFunction(
+        serverSideState,
+        applyCategoriesListStateAction,
+        fetchCategoriesListThunkAction,
+        mealService.getCategoriesList,
+    ), [])
     
     return (<>
         <Head>
@@ -52,12 +50,24 @@ const Page = (props) => {
     </>)
 }
 
-Page.getInitialProps = getInitialPropsFunction(mealService.getCategoriesList);
+Page.getInitialProps = async ({ req }) => {
+    if (!req) {
+      return { serverSideState: null }
+    }
+  
+    const serverSideState = { ...initialCategoriesListState };
+    try {
+      serverSideState.list = await mealService.getCategoriesList();
+    } catch (error) {
+      serverSideState.error = createServerSideError(error);
+    }
+    return { serverSideState };
+  }
 
 Page.propTypes = {
-    fetchCategoriesListSuccessAction: PropTypes.func,
+    applyCategoriesListStateAction: PropTypes.func,
     fetchCategoriesListThunkAction: PropTypes.func,
-    serverSideData: PropTypes.array,
+    serverSideState: PropTypes.object,
     categoriesListState: PropTypes.object,
 }
 
@@ -65,7 +75,7 @@ const mapStateToProps = (state) => ({
     categoriesListState: state.categoriesListState,
 });
 const mapDispatchToProps = ({
-    fetchCategoriesListSuccessAction,
+    applyCategoriesListStateAction,
     fetchCategoriesListThunkAction,
 });
 

@@ -1,11 +1,6 @@
-const initialState = {
-    list: [],
-    pages: 1,
-    error: null,
-    isLoading: false,
-}
+import { initialMealListState } from '../store/initialStates';
 
-const mealListReducer = (state = initialState, action) => {
+const mealListReducer = (state = initialMealListState, action) => {
     switch (action.type) {
         case 'FETCH_MEAL_LIST_REQUEST':
             return {
@@ -27,6 +22,15 @@ const mealListReducer = (state = initialState, action) => {
                 pages: 1,
                 error: action.payload,
                 isLoading: false,
+            }
+        case 'RESET_MEAL_LIST':
+            return { ...initialMealListState }
+        case 'APPLY_MEAL_LIST_SERVER_STATE':
+            return {
+                list: action.payload.list,
+                pages: action.payload.pages,
+                error: action.payload.error,
+                isLoading: action.payload.isLoading,
             }
         default: return state;
     }

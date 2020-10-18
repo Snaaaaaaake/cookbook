@@ -6,40 +6,38 @@ import Head from 'next/head';
 import StandartLayout from '../src/components/StandartLayout/StandartLayout';
 import MealCard from '../src/components/MealCard/MealCard';
 import mealService from '../src/service/MealService';
-import getInitialPropsFunction from '../src/utils/getInitialPropsFunction';
+import componentDidMountFunction from '../src/utils/componentDidMountFunction';
+import createServerSideError from '../src/utils/createServerSideError';
 import checkContentState from '../src/utils/checkContentState';
+import { initialSingleMealState } from '../src/store/initialStates';
 import appTitle from '../src/constants/appTitle';
 import {
-  fetchSingleMealSuccessAction,
+  applySingleMealServerStateAction,
   fetchSingleMealThunkAction,
 } from '../src/actions/actions';
 
 const Page = (props) => {
   const {
-    fetchSingleMealSuccessAction,
+    applySingleMealServerStateAction,
     fetchSingleMealThunkAction,
-    serverSideData,
+    serverSideState,
     singleMealState,
   } = props;
   
-  const { error, isLoading } = singleMealState
-  const meal = serverSideData ? serverSideData : singleMealState.meal;
-  const contentState = checkContentState(error, isLoading);
+  useEffect(componentDidMountFunction(
+    serverSideState,
+    applySingleMealServerStateAction,
+    fetchSingleMealThunkAction,
+    mealService.getRandomMeal,
+  ), []);
 
-  useEffect(()=>{
-    const fetchState = { canceled: false };
-    if (serverSideData) {
-      fetchSingleMealSuccessAction(serverSideData);
-    } else {
-      fetchSingleMealThunkAction(mealService.getRandomMeal, fetchState)
-    }
-    return () => fetchState.canceled = true;
-  }, []);
+  const { meal, error, isLoading } = serverSideState ? serverSideState : singleMealState;
+  const contentState = checkContentState(error, isLoading);
 
   return (<>
       <Head>
         <title>{appTitle}</title>
-        <meta name="description" content="Онлайн книга с рецептами для приготовления блюд" /> 
+        <meta name="description" content="Онлайн книга с рецептами для приготовления блюд" />
       </Head>
 
       <StandartLayout>
@@ -53,12 +51,24 @@ const Page = (props) => {
   </>)
 }
 
-Page.getInitialProps = getInitialPropsFunction(mealService.getRandomMeal);
+Page.getInitialProps = async ({ req }) => {
+  if (!req) {
+    return { serverSideState: null }
+  }
+
+  const serverSideState = { ...initialSingleMealState };
+  try {
+    serverSideState.meal = await mealService.getRandomMeal();
+  } catch (error) {
+    serverSideState.error = createServerSideError(error);
+  }
+  return { serverSideState };
+}
 
 Page.propTypes = {
-  fetchSingleMealSuccessAction: PropTypes.func,
+  applySingleMealServerStateAction: PropTypes.func,
   fetchSingleMealThunkAction: PropTypes.func,
-  serverSideData: PropTypes.object,
+  serverSideState: PropTypes.object,
   singleMealState: PropTypes.object,
 }
 
@@ -66,7 +76,7 @@ const mapStateToProps = (state) => ({
   singleMealState: state.singleMealState,
 });
 const mapDispatchToProps = {
-  fetchSingleMealSuccessAction,
+  applySingleMealServerStateAction,
   fetchSingleMealThunkAction,
 }
 
